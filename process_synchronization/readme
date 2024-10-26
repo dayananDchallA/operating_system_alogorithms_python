@@ -1,0 +1,188 @@
+Process synchronization algorithms are essential for handling concurrent processes that share resources. Here are Python implementations for commonly used synchronization techniques:
+
+Semaphore
+Mutex Lock
+Barrier
+Monitor (using Condition Variable)
+These implementations include comments to explain each part and test code to demonstrate their usage.
+
+1. Semaphore
+A semaphore controls access to a resource with a counter. Only a set number of processes can access the resource concurrently.
+
+python
+Copy code
+import threading
+import time
+
+class Semaphore:
+    def __init__(self, max_count):
+        self.counter = max_count
+        self.condition = threading.Condition()
+
+    def acquire(self):
+        with self.condition:
+            while self.counter == 0:
+                self.condition.wait()
+            self.counter -= 1
+
+    def release(self):
+        with self.condition:
+            self.counter += 1
+            self.condition.notify()
+
+# Test for Semaphore
+def semaphore_test(semaphore, process_id):
+    print(f"Process {process_id} waiting to enter critical section")
+    semaphore.acquire()
+    print(f"Process {process_id} entered critical section")
+    time.sleep(1)  # Simulate process operation in critical section
+    print(f"Process {process_id} leaving critical section")
+    semaphore.release()
+
+# Create a semaphore that allows 2 processes at a time
+sem = Semaphore(2)
+threads = [threading.Thread(target=semaphore_test, args=(sem, i)) for i in range(5)]
+for t in threads:
+    t.start()
+for t in threads:
+    t.join()
+2. Mutex Lock
+A Mutex (Mutual Exclusion) lock allows only one process to access a resource at a time.
+
+python
+Copy code
+class Mutex:
+    def __init__(self):
+        self.lock = threading.Lock()
+
+    def acquire(self):
+        self.lock.acquire()
+
+    def release(self):
+        self.lock.release()
+
+# Test for Mutex Lock
+def mutex_test(mutex, process_id):
+    print(f"Process {process_id} waiting for mutex lock")
+    mutex.acquire()
+    print(f"Process {process_id} acquired mutex lock")
+    time.sleep(1)  # Simulate process operation in critical section
+    print(f"Process {process_id} releasing mutex lock")
+    mutex.release()
+
+# Create a Mutex
+mutex = Mutex()
+threads = [threading.Thread(target=mutex_test, args=(mutex, i)) for i in range(5)]
+for t in threads:
+    t.start()
+for t in threads:
+    t.join()
+3. Barrier
+A Barrier synchronization technique blocks processes until a specified number have reached the barrier point, ensuring they proceed together.
+
+python
+Copy code
+class Barrier:
+    def __init__(self, count):
+        self.count = count
+        self.current_count = 0
+        self.condition = threading.Condition()
+
+    def wait(self):
+        with self.condition:
+            self.current_count += 1
+            if self.current_count == self.count:
+                self.condition.notify_all()  # Release all waiting threads
+            else:
+                self.condition.wait()
+
+# Test for Barrier
+def barrier_test(barrier, process_id):
+    print(f"Process {process_id} reached barrier")
+    barrier.wait()
+    print(f"Process {process_id} passed barrier")
+
+# Create a Barrier for 3 processes
+barrier = Barrier(3)
+threads = [threading.Thread(target=barrier_test, args=(barrier, i)) for i in range(3)]
+for t in threads:
+    t.start()
+for t in threads:
+    t.join()
+4. Monitor (using Condition Variable)
+A Monitor is a synchronization construct that controls access to shared data using condition variables. Here, we use Python’s Condition class to simulate a monitor with a producer-consumer problem.
+
+python
+Copy code
+class MonitorBuffer:
+    def __init__(self, capacity):
+        self.buffer = []
+        self.capacity = capacity
+        self.condition = threading.Condition()
+
+    def produce(self, item):
+        with self.condition:
+            while len(self.buffer) == self.capacity:
+                self.condition.wait()
+            self.buffer.append(item)
+            print(f"Produced: {item}")
+            self.condition.notify_all()
+
+    def consume(self):
+        with self.condition:
+            while not self.buffer:
+                self.condition.wait()
+            item = self.buffer.pop(0)
+            print(f"Consumed: {item}")
+            self.condition.notify_all()
+            return item
+
+# Test for Monitor Buffer
+def producer(monitor, items):
+    for item in items:
+        monitor.produce(item)
+        time.sleep(0.5)
+
+def consumer(monitor, count):
+    for _ in range(count):
+        monitor.consume()
+        time.sleep(1)
+
+buffer_capacity = 3
+monitor_buffer = MonitorBuffer(buffer_capacity)
+items_to_produce = [1, 2, 3, 4, 5]
+
+producer_thread = threading.Thread(target=producer, args=(monitor_buffer, items_to_produce))
+consumer_thread = threading.Thread(target=consumer, args=(monitor_buffer, len(items_to_produce)))
+
+producer_thread.start()
+consumer_thread.start()
+
+producer_thread.join()
+consumer_thread.join()
+Explanation of Each Test
+Semaphore Test:
+
+We create a semaphore that allows two processes to enter the critical section simultaneously.
+Each thread calls semaphore_test, where it tries to acquire the semaphore, sleeps for 1 second (simulating work), and releases the semaphore.
+Mutex Lock Test:
+
+The mutex allows only one process to enter the critical section at a time.
+Each thread calls mutex_test, where it tries to acquire the mutex, sleeps for 1 second, and then releases it.
+Barrier Test:
+
+The barrier is set up for 3 processes.
+Each thread calls barrier_test, where it waits at the barrier. Only once all threads reach the barrier can they proceed.
+Monitor Buffer Test (Producer-Consumer):
+
+We use a monitor buffer with a set capacity to control access for producers and consumers.
+The producer function generates items and places them in the buffer. If the buffer is full, it waits until a slot becomes available.
+The consumer function takes items from the buffer. If the buffer is empty, it waits until items are produced.
+Summary
+Each algorithm synchronizes access to shared resources in different scenarios:
+
+Semaphore: Limits access based on counter (multiple processes can access simultaneously up to a limit).
+Mutex: Allows one process access to a resource at a time.
+Barrier: Synchronizes threads to reach a common checkpoint.
+Monitor: Uses a buffer for producer-consumer synchronization.
+These examples showcase each synchronization mechanism’s control over concurrent access, along with test functions for practical understanding.
